@@ -1,0 +1,148 @@
+<doctype html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<title>蔚藍檔案活動報告存量計算機</title>
+		<style>
+			body {background-color:black;}
+			body {color:white;}
+		</style>
+	</head>
+	<body align="center">
+		<div>
+			<form>
+				<h3>蔚藍檔案活動報告存量計算機</h3>
+				初級活動報告(白)：<input type="number" id="Lv1" placeholder="初級活動報告(白)" min="0" onchange="change()">本<br>
+				一般活動報告(藍)：<input type="number" id="Lv2" placeholder="一般活動報告(藍)" min="0" onchange="change()">本<br>
+				高級活動報告(橘)：<input type="number" id="Lv3" placeholder="高級活動報告(橘)" min="0" onchange="change()">本<br>
+				最高級活動報告(紫)：<input type="number" id="Lv4" placeholder="最高級活動報告(紫)" min="0" onchange="change()">本<br>
+				<br>
+				目標等級所需經驗：<input type="number" id="Lv" placeholder="目標等級所需經驗" min="0" onchange="change()">XP<br>
+			</form>
+		</div>
+		<button type="button" id="count" onclick="count()">計算</button>
+		<div id="out">結果：</div>
+		<script language="javascript">
+			function count(){
+				const LV1 = get("Lv1"),LV2 = get("Lv2"),LV3 = get("Lv3"),LV4 = get("Lv4"),LV = get("Lv");
+				const LV1XP = LV1*50,LV2XP = LV2*500,LV3XP = LV3*2000,LV4XP = LV4*10000;
+
+				let str = "結果：<br>初級活動報告(白)："+LV1XP+" XP<br>一般活動報告(藍)："+LV2XP+" XP<br>高級活動報告(橘)："+LV3XP+" XP<br>最高級活動報告(紫)："+LV4XP+" XP<br><br>";
+
+				if(LV != 0){
+					str += "升級一個學生需要：<br>";
+					let needXp = LV;
+					if(needXp % 10000 > 0){
+						str += "最高級活動報告(紫)" + Math.floor(needXp/10000) + "本<br>";
+						needXp = needXp % 10000;
+					}
+					if(needXp % 2000 > 0){
+						str += "高級活動報告(橘)" + Math.floor(needXp/2000) + "本<br>";
+						needXp = needXp % 2000;
+					}
+					if(needXp % 500 > 0){
+						str += "一般活動報告(藍)" + Math.floor(needXp/500) + "本<br>";
+						needXp = needXp % 500;
+					}
+					if(needXp / 50 > 0){
+						str += "初級活動報告(白)" + Math.ceil(needXp/50) + "本<br>";
+					}
+
+					
+					str += "<br>所有活動報告大概可以升級" + Math.floor((LV1XP + LV2XP + LV3XP + LV4XP) / LV) + "位學生<br><br>只用同一種則可升級：<br>";
+
+					if(Math.floor(LV1XP / LV) > 0){
+						str += "初級活動報告(白)：" + Math.floor(LV1XP / LV) + "位<br>";
+					}
+					if(Math.floor(LV2XP / LV) > 0){
+						str += "一般活動報告(藍)：" + Math.floor(LV2XP / LV) + "位<br>";
+					}
+					if(Math.floor(LV3XP / LV) > 0){
+						str += "高級活動報告(橘)：" + Math.floor(LV3XP / LV) + "位<br>";
+					}
+					if(Math.floor(LV4XP / LV) > 0){
+						str += "最高級活動報告(紫)：" + Math.floor(LV4XP / LV) + "位<br>";
+					}
+				}
+				
+				document.getElementById("out").innerHTML = str;
+			}
+
+			function get(id){
+				return document.getElementById(id).value == "" ? set(id,0) : Number(document.getElementById(id).value);
+			}
+
+			function set(id,value){
+				document.getElementById(id).value = value;
+				return value;
+			}
+
+			function change(){
+				const url = new URL(location);
+
+				let lsData = {};
+
+				let id = "Lv1";
+				if(document.getElementById(id).value && document.getElementById(id).value != ""){
+					url.searchParams.set(id, document.getElementById(id).value);
+					lsData[id] = document.getElementById(id).value;
+				}
+				id = "Lv2";
+				if(document.getElementById(id).value && document.getElementById(id).value != ""){
+					url.searchParams.set(id, document.getElementById(id).value);
+					lsData[id] = document.getElementById(id).value;
+				}
+				id = "Lv3";
+				if(document.getElementById(id).value && document.getElementById(id).value != ""){
+					url.searchParams.set(id, document.getElementById(id).value);
+					lsData[id] = document.getElementById(id).value;
+				}
+				id = "Lv4";
+				if(document.getElementById(id).value && document.getElementById(id).value != ""){
+					url.searchParams.set(id, document.getElementById(id).value);
+					lsData[id] = document.getElementById(id).value;
+				}
+				id = "Lv";
+				if(document.getElementById(id).value && document.getElementById(id).value != ""){
+					url.searchParams.set(id, document.getElementById(id).value);
+					lsData[id] = document.getElementById(id).value;
+				}
+				history.pushState({}, "", url);
+
+				try {
+					localStorage.setItem('BAXpCount-INPUT',JSON.stringify(lsData));					
+				} catch (error) {}
+			}
+
+			function load(id){
+				const url = new URL(location.href), data = url.searchParams.get(id);
+				if(data && data != "" && document.getElementById(id)){
+					document.getElementById(id).value = data;
+					return true;
+				}
+				return false;
+			}
+
+			let hasPre = false;
+
+			try {
+				const lsInput = localStorage.getItem('BAXpCount-INPUT');
+
+
+				if(lsInput && lsInput != ""){
+					const json = JSON.parse(lsInput);
+					for(id in json){
+						if(document.getElementById(id)){
+							document.getElementById(id).value = json[id];
+							hasPre = true;
+						}
+					}
+				}				
+			} catch (error) {}
+			
+			if(hasPre || load("Lv1") || load("Lv2") || load("Lv3") || load("Lv4") || load("Lv")){
+				document.getElementById('count').click();
+			}
+		</script>
+	</body>
+</html>
