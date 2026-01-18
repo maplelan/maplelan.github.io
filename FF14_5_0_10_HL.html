@@ -1,0 +1,33 @@
+<script>
+let all = []
+
+const b = [9,6]
+const player = [2]
+
+for (let i = 1; i <= 9; i++){
+  if (!(player.includes(i) || b.includes(i))){
+    all.push(i)
+  }
+}
+
+let resPh = 0,resPl = 0,resSame = 0;
+
+for(const b3 of all){
+  for (const p2 of all.filter(item => item !== b3)){
+    for (const p3 of all.filter(item => (item !== b3 && item !== p2))){
+      const fp = [...player,p2,p3].reduce((a,b)=>a+b);
+      const fb = [...b,b3].reduce((a,b)=>a+b);
+      if(fp > fb){
+        resPh++;
+      }else if(fp < fb){
+        resPl++;
+      }else if(fp == fb){
+        resSame++;
+      }
+      console.log(b3,p2,p3,fp,fb);
+    }
+  }
+}
+
+console.log(resPh,resPl,resSame)
+</script>
