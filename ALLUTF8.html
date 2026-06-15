@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title id="metaTitle">UTF-8 16字元窮舉與雙向搜索器</title>
+    <style>
+        :root {
+            --primary-color: #2563eb;
+            --bg-color: #f8fafc;
+            --card-bg: #ffffff;
+            --text-color: #1e293b;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+        .container {
+            width: 100%;
+            max-width: 1100px; /* 寬度稍微放大以容納多欄排版 */
+            background: var(--card-bg);
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            position: relative;
+        }
+        /* 語系切換按鈕區塊 */
+        .lang-switch {
+            position: absolute;
+            top: 20px;
+            right: 30px;
+        }
+        .lang-btn {
+            padding: 6px 12px;
+            font-size: 13px;
+            background-color: #e2e8f0;
+            color: #334155;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+        .lang-btn:hover {
+            background-color: #cbd5e1;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 24px;
+            color: #0f172a;
+        }
+        .section {
+            margin-bottom: 25px;
+            padding: 20px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+        }
+        .section-title {
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: #334155;
+        }
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+            align-items: center;
+        }
+        input[type="text"], input[type="number"], select {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            font-size: 16px;
+            background: white;
+        }
+        select {
+            flex: 0 0 150px;
+        }
+        label {
+            font-size: 14px;
+            color: #475569;
+            font-weight: 500;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 500;
+            transition: background 0.2s;
+            white-space: nowrap;
+        }
+        button:hover {
+            background-color: #1d4ed8;
+        }
+        button.stop {
+            background-color: #ef4444;
+        }
+        button.stop:hover {
+            background-color: #dc2626;
+        }
+        .output-box {
+            width: 100%;
+            min-height: 60px;
+            background: #f1f5f9;
+            border-radius: 6px;
+            padding: 12px;
+            box-sizing: border-box;
+            font-family: "Courier New", Courier, monospace;
+            white-space: pre-wrap;
+            word-break: break-all;
+            border: 1px solid #e2e8f0;
+            margin-top: 10px;
+        }
+        
+        /* --- 核心修改：多欄排版外容器 --- */
+        .exhaust-container {
+            display: flex;
+            flex-direction: column;  /* 由上而下排列 */
+            flex-wrap: wrap;         /* 超過高度自動向右換行 */
+            height: 628px;           /* 固定高度以容納 25 行 (24px * 25 = 600px + padding) */
+            align-content: flex-start; /* 欄位靠左對齊 */
+            gap: 0 30px;             /* 欄與欄之間保留 30px 間距 */
+            overflow-x: auto;        /* 如果設定 100 個且螢幕太窄，允許水平捲動 */
+        }
+        /* 窮舉單一項目的樣式 */
+        .exhaust-item {
+            height: 24px;            /* 固定單行高度，精準控制 25 行 */
+            line-height: 24px;
+            font-size: 13px;
+            white-space: nowrap;     /* 防止單行內容自己換行錯亂 */
+        }
+        
+        .info-text {
+            font-size: 12px;
+            color: #64748b;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="lang-switch">
+        <button class="lang-btn" id="langToggleBtn" onclick="toggleLanguage()">简体中文</button>
+    </div>
+
+    <h1 id="mainTitle">UTF-8 16字元窮舉與雙向搜索器</h1>
+
+    <div class="section">
+        <div class="section-title" id="sec1Title">1. 正向搜索（位置索引 ➔ 字串）</div>
+        <div class="input-group">
+            <input type="text" id="numInput" placeholder="請輸入窮舉位置數字 (支援超大整數)" />
+            <button id="btnGetStr" onclick="getStrFromNum()">取得字串</button>
+        </div>
+        <div class="output-box" id="numToStrOutput">等待輸入...</div>
+    </div>
+
+    <div class="section">
+        <div class="section-title" id="sec2Title">2. 反向搜索（字串 ➔ 位置索引）</div>
+        <div class="input-group">
+            <input type="text" id="strInput" maxlength="16" placeholder="請輸入任意字串 (最多16個字元)" />
+            <button id="btnGetNum" onclick="getNumFromStr()">找位置</button>
+        </div>
+        <div class="output-box" id="strToNumOutput">等待輸入...</div>
+    </div>
+
+    <div class="section">
+        <div class="section-title" id="sec3Title">3. 窮舉</div>
+        <div class="input-group">
+            <label for="batchSizeSelect" id="lblBatchSize">每次刷新數量：</label>
+            <select id="batchSizeSelect">
+                <option value="5" id="opt5">5 個</option>
+                <option value="25" id="opt25" selected>25 個</option>
+                <option value="50" id="opt50">50 個</option>
+                <option value="75" id="opt75">75 個</option>
+                <option value="100" id="opt100">100 個</option>
+            </select>
+            <button id="toggleExhaustBtn" onclick="toggleExhaustion()">窮舉開始</button>
+        </div>
+        <div class="output-box exhaust-container" id="exhaustOutput">
+            <div class="exhaust-item" id="exhaustDefaultText">尚未開始...</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- i18n 語系字典定義 ---
+    const i18n = {
+        'zh-TW': {
+            langBtn: "繁體中文",
+            mainTitle: "UTF-8 16字元窮舉與雙向搜索器",
+            sec1Title: "1. 正向搜尋（位置索引 ➔ 字串）",
+            sec2Title: "2. 反向搜尋（字串 ➔ 位置索引）",
+            sec3Title: "3. 窮舉",
+            numInputPlaceholder: "請輸入窮舉位置數字 (支援超大整數)",
+            strInputPlaceholder: "請輸入任意字串 (最多16個字元)",
+            btnGetStr: "取得字串",
+            btnGetNum: "找位置",
+            lblBatchSize: "每次刷新數量：",
+            optSuffix: " 個",
+            exhaustStart: "窮舉開始",
+            exhaustStop: "窮舉停止",
+            waitingInput: "等待輸入...",
+            notStarted: "尚未開始...",
+            errEmptyNum: "請輸入數字！",
+            errInvalidNum: "請輸入正確的正整數格式。",
+            errTooLongStr: "字串長度超過 16 個字元！",
+            emptyStrResult: "空字串 (0)",
+            strResultPrefix: "字串結果: ",
+            charLengthSuffix: " 個字元",
+            reverseIndexTitle: "該字串在窮舉序列中的位置索引:\n",
+            exhaustItemPrefix: "位置: ",
+            exhaustItemMid: " ➔ 字串: [ "
+        },
+        'zh-CN': {
+            langBtn: "简体中文",
+            mainTitle: "UTF-8 16字符穷举与双向搜索器",
+            sec1Title: "1. 正向搜索（位置索引 ➔ 字符串）",
+            sec2Title: "2. 反向搜索（字符串 ➔ 位置索引）",
+            sec3Title: "3. 穷举",
+            numInputPlaceholder: "请输入穷举位置数字 (支持超大整数)",
+            strInputPlaceholder: "请输入任意字符串 (最多16个字符)",
+            btnGetStr: "取得字符串",
+            btnGetNum: "找位置",
+            lblBatchSize: "每次刷新数量：",
+            optSuffix: " 个",
+            exhaustStart: "穷举开始",
+            exhaustStop: "穷举停止",
+            waitingInput: "等待输入...",
+            notStarted: "尚未开始...",
+            errEmptyNum: "请输入数字！",
+            errInvalidNum: "请输入正确的正整数格式。",
+            errTooLongStr: "字符串长度超过 16 个字符！",
+            emptyStrResult: "空字符串 (0)",
+            strResultPrefix: "字符串结果: ",
+            charLengthSuffix: " 个字符",
+            reverseIndexTitle: "该字符串在穷举序列中的位置索引:\n",
+            exhaustItemPrefix: "位置: ",
+            exhaustItemMid: " ➔ 字符串: [ "
+        }
+    };
+
+    let currentLang = 'zh-TW'; // 預設語系
+
+    function updateInterface() {
+        const t = i18n[currentLang];
+        
+        // 更新靜態文字
+        document.getElementById('metaTitle').innerText = t.mainTitle;
+        document.getElementById('mainTitle').innerText = t.mainTitle;
+        document.getElementById('sec1Title').innerText = t.sec1Title;
+        document.getElementById('sec2Title').innerText = t.sec2Title;
+        document.getElementById('sec3Title').innerText = t.sec3Title;
+        document.getElementById('lblBatchSize').innerText = t.lblBatchSize;
+        
+        // 更新 Placeholder
+        document.getElementById('numInput').placeholder = t.numInputPlaceholder;
+        document.getElementById('strInput').placeholder = t.strInputPlaceholder;
+        
+        // 更新按鈕
+        document.getElementById('langToggleBtn').innerText = t.langBtn;
+        document.getElementById('btnGetStr').innerText = t.btnGetStr;
+        document.getElementById('btnGetNum').innerText = t.btnGetNum;
+        
+        if (!isExhausting) {
+            document.getElementById('toggleExhaustBtn').innerText = t.exhaustStart;
+        } else {
+            document.getElementById('toggleExhaustBtn').innerText = t.exhaustStop;
+        }
+
+        // 更新下拉選單
+        document.getElementById('opt5').innerText = "5" + t.optSuffix;
+        document.getElementById('opt25').innerText = "25" + t.optSuffix;
+        document.getElementById('opt50').innerText = "50" + t.optSuffix;
+        document.getElementById('opt75').innerText = "75" + t.optSuffix;
+        document.getElementById('opt100').innerText = "100" + t.optSuffix;
+
+        // 如果目前沒有在執行或輸出，更新預設狀態文字
+        if (document.getElementById('numToStrOutput').innerText.includes('等待') || document.getElementById('numToStrOutput').innerText.includes('等待')) {
+            document.getElementById('numToStrOutput').innerText = t.waitingInput;
+        }
+        if (document.getElementById('strToNumOutput').innerText.includes('等待') || document.getElementById('strToNumOutput').innerText.includes('等待')) {
+            document.getElementById('strToNumOutput').innerText = t.waitingInput;
+        }
+        if (document.getElementById('exhaustOutput').querySelector('#exhaustDefaultText')) {
+            document.getElementById('exhaustDefaultText').innerText = t.notStarted;
+        }
+    }
+
+    function toggleLanguage() {
+        currentLang = (currentLang === 'zh-TW') ? 'zh-CN' : 'zh-TW';
+        document.documentElement.lang = currentLang;
+        updateInterface();
+    }
+
+    // --- Unicode / UTF-8 全域變數定義 ---
+    const BASE = 0x110000n; 
+
+    function codePointToChar(cp) {
+        try {
+            if (cp >= 0xD800 && cp <= 0xDFFF) return ""; 
+            return String.fromCodePoint(cp);
+        } catch (e) {
+            return "";
+        }
+    }
+
+    // --- 功能 1：數字轉字串 ---
+    function getStrFromNum() {
+        const inputVal = document.getElementById('numInput').value.trim();
+        const output = document.getElementById('numToStrOutput');
+        const t = i18n[currentLang];
+        
+        if (!inputVal) {
+            output.innerText = t.errEmptyNum;
+            return;
+        }
+
+        try {
+            let num = BigInt(inputVal);
+            if (num < 0n) throw new Error();
+            
+            let result = "";
+            let temp = num;
+
+            while (temp > 0n) {
+                let remainder = temp % BASE;
+                result = codePointToChar(Number(remainder)) + result;
+                temp = temp / BASE;
+            }
+
+            output.innerText = result === "" ? t.emptyStrResult : `${t.strResultPrefix}${result}\n(長度: ${[...result].length}${t.charLengthSuffix})`;
+        } catch (e) {
+            output.innerText = t.errInvalidNum;
+        }
+    }
+
+    // --- 功能 2：字串轉數字 ---
+    function getNumFromStr() {
+        const inputVal = document.getElementById('strInput').value;
+        const output = document.getElementById('strToNumOutput');
+        const t = i18n[currentLang];
+
+        if (inputVal.length === 0) {
+            output.innerText = `位置索引: 0 (${t.emptyStrResult})`;
+            return;
+        }
+
+        const chars = [...inputVal];
+        
+        if (chars.length > 16) {
+            output.innerText = t.errTooLongStr;
+            return;
+        }
+
+        let position = 0n;
+        for (let i = 0; i < chars.length; i++) {
+            const cp = BigInt(chars[i].codePointAt(0));
+            position = position * BASE + cp;
+        }
+
+        output.innerText = `${t.reverseIndexTitle}${position.toString()}`;
+    }
+
+    // --- 功能 3：動態高速窮舉 ---
+    let isExhausting = false;
+    let currentExhaustNum = 1n; 
+    let animationFrameId = null;
+
+    function toggleExhaustion() {
+        const btn = document.getElementById('toggleExhaustBtn');
+        const select = document.getElementById('batchSizeSelect');
+        const t = i18n[currentLang];
+
+        if (!isExhausting) {
+            isExhausting = true;
+            btn.innerText = t.exhaustStop;
+            btn.classList.add('stop');
+            select.disabled = true; 
+            loopExhaust();
+        } else {
+            isExhausting = false;
+            btn.innerText = t.exhaustStart;
+            btn.classList.remove('stop');
+            select.disabled = false; 
+            cancelAnimationFrame(animationFrameId);
+        }
+    }
+
+    function loopExhaust() {
+        if (!isExhausting) return;
+
+        const output = document.getElementById('exhaustOutput');
+        const batchSize = parseInt(document.getElementById('batchSizeSelect').value, 10);
+        const t = i18n[currentLang];
+        
+        const fragment = document.createDocumentFragment();
+
+        for (let k = 0; k < batchSize; k++) {
+            let temp = currentExhaustNum;
+            let strResult = "";
+            
+            while (temp > 0n) {
+                let remainder = temp % BASE;
+                strResult = codePointToChar(Number(remainder)) + strResult;
+                temp = temp / BASE;
+            }
+
+            // 建立單行節點
+            const itemDiv = document.createElement('div');
+            itemDiv.className = 'exhaust-item';
+            // 動態切換項目內的「位置」與「字串/字符串」字樣
+            itemDiv.innerText = `${t.exhaustItemPrefix}${currentExhaustNum.toString()}${t.exhaustItemMid}${strResult} ]`;
+            
+            fragment.appendChild(itemDiv);
+            currentExhaustNum++; 
+        }
+
+        output.replaceChildren(fragment);
+
+        animationFrameId = requestAnimationFrame(loopExhaust);
+    }
+
+    // 初始化頁面文字
+    updateInterface();
+</script>
+
+</body>
+</html>
