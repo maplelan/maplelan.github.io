@@ -250,7 +250,21 @@
         }
     };
 
-    let currentLang = 'zh-TW'; // 預設語系
+    let currentLang = 'zh-TW'; // 預設
+    
+    // 偵測瀏覽器語系 (例如 zh-CN, zh-SG, zh-HK, zh-TW)
+    const browserLang = navigator.language || navigator.userLanguage;
+    
+    if (browserLang) {
+        // 如果瀏覽器語系包含 zh-CN 或 zh-SG (新馬地區)，就自動切換成簡體
+        if (browserLang.toLowerCase().includes('zh-cn') || browserLang.toLowerCase().includes('zh-sg')) {
+            currentLang = 'zh-CN';
+        } else {
+            // 其餘 zh 開頭（如 zh-TW, zh-HK）或非中文語系，一律維持預設繁體
+            currentLang = 'zh-TW';
+        }
+    }
+    document.documentElement.lang = currentLang;
 
     function updateInterface() {
         const t = i18n[currentLang];
